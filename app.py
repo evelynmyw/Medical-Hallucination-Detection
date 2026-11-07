@@ -127,6 +127,28 @@ def plot_score_distribution(y, prob, threshold) -> Figure:
     return fig
 
 
+def probability_bar(p: float, threshold: float) -> str:
+    """Horizontal bar of P(hallucinated) with the decision threshold marked.
+
+    Replaces gr.Label, whose headline is the argmax class and would contradict
+    the thresholded prediction whenever 0.5 <= p < threshold.
+    """
+    color = HALLU_COLOR if p >= threshold else GT_COLOR
+    return f"""
+<div style="font-family: system-ui, sans-serif; color: {INK_2}; font-size: 13px; padding: 4px 0 20px;">
+  <div style="position: relative; height: 14px; background: {GRID}; border-radius: 4px;">
+    <div style="width: {p * 100:.1f}%; height: 100%; background: {color}; border-radius: 4px;"></div>
+    <div style="position: absolute; left: {threshold * 100:.1f}%; top: -5px; bottom: -5px;
+                width: 2px; background: {INK};"></div>
+    <div style="position: absolute; left: {threshold * 100:.1f}%; top: 20px;
+                transform: translateX(-50%); white-space: nowrap;">threshold {threshold:.2f}</div>
+  </div>
+  <div style="display: flex; justify-content: space-between; margin-top: 24px; color: {MUTED};">
+    <span>0 · ground truth</span><span>1 · hallucinated</span>
+  </div>
+</div>"""
+
+
 # ---------- App ----------
 
 def build_app(detector, seed_preds: dict) -> gr.Blocks:
@@ -149,31 +171,38 @@ def build_app(detector, seed_preds: dict) -> gr.Blocks:
                     with gr.Column():
                         question = gr.Textbox(label="Question", lines=2)
                         answer = gr.Textbox(label="Answer", lines=5)
+                        reference = gr.Textbox(label="Dataset label (filled in by the examples below)",
+                                               interactive=False)
                         run = gr.Button("Check answer", variant="primary")
                     with gr.Column():
                         verdict = gr.Markdown()
-                        probs = gr.Label(label="Model output", num_top_classes=2)
+                        prob_bar = gr.HTML()
 
                 def score(q, a):
                     if not q.strip() or not a.strip():
-                        return "Enter both a question and an answer.", None
+                        return "Enter both a question and an answer.", ""
                     r = detector.predict(q, a)
-                    p = r["p_hallucinated"]
+                    p, t = r["p_hallucinated"], r["threshold"]
                     name = "Hallucinated" if r["label"] == "hallucinated" else "Ground truth"
-                    return (f"### Prediction: {name}\nP(hallucinated) = **{p:.3f}** "
-                            f"vs threshold {r['threshold']:.2f}",
-                            {"hallucinated": p, "ground truth": 1 - p})
+                    return (f"### Prediction: {name}\nP(hallucinated) = **{p:.3f}**, "
+                            f"threshold {t:.2f} (hallucinated if P ≥ threshold)",
+                            probability_bar(p, t))
 
-                run.click(score, [question, answer], [verdict, probs])
+                run.click(score, [question, answer], [verdict, prob_bar])
+                # Typing your own text clears the label that came from an example.
+                for box in (question, answer):
+                    box.input(lambda: "", None, reference)
 
                 if seeds:
                     test_df = seed_preds[seeds[0]][0]
                     examples = test_df[test_df["qid"].isin(EXAMPLE_QIDS)].sort_values(["qid", "label"])
+                    examples = examples.assign(
+                        reference=examples["qid"] + ": " + examples["label"].map(
+                            {0: "ground truth", 1: "hallucinated"}))
                     gr.Examples(
-                        examples=examples[["question", "answer"]].values.tolist(),
-                        inputs=[question, answer],
-                        label="Test-set pairs (each question appears twice: ground truth, then hallucinated). "
-                              "pqa_labeled-160 and -490 are known failure cases.",
+                        examples=examples[["question", "answer", "reference"]].values.tolist(),
+                        inputs=[question, answer, reference],
+                        label="Test-set pairs. pqa_labeled-160 and -490 are known failure cases.",
                     )
 
         # ----- Tab 2: Evaluation -----

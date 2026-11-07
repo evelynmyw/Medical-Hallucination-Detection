@@ -55,11 +55,11 @@ def test_detect_strips_whitespace_before_predicting(client, fake):
 
 
 @pytest.mark.parametrize("payload", [
-    {"question": "Q?"},                         # missing answer
-    {"question": "   ", "answer": "A."},        # whitespace-only question
-    {"question": "Q?", "answer": ""},           # empty answer
-    {"question": "Q?", "answer": "x" * 5001},   # too long
-])
+    {"question": "Q?"},
+    {"question": "   ", "answer": "A."},
+    {"question": "Q?", "answer": ""},
+    {"question": "Q?", "answer": "x" * 5001},
+], ids=["missing-answer", "whitespace-question", "empty-answer", "answer-too-long"])
 def test_detect_rejects_invalid_input(client, fake, payload):
     r = client.post("/detect", json=payload)
     assert r.status_code == 422
