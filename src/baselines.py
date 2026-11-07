@@ -70,6 +70,20 @@ def evaluate(model, df: pd.DataFrame, threshold: float = 0.5) -> dict:
     return results
 
 
+def top_features(model, k: int = 20) -> pd.DataFrame:
+    """Words with the largest positive (-> hallucinated) and negative (-> ground truth) weights."""
+    vectorizer, clf = model[-2], model[-1]
+    words = vectorizer.get_feature_names_out()
+    coef = clf.coef_[0]
+    order = np.argsort(coef)
+    return pd.DataFrame({
+        "ground_truth_word": words[order[:k]],
+        "gt_weight": coef[order[:k]].round(2),
+        "hallucinated_word": words[order[::-1][:k]],
+        "hallu_weight": coef[order[::-1][:k]].round(2),
+    })
+
+
 # ---------- Main ----------
 
 def main() -> None:
@@ -82,14 +96,19 @@ def main() -> None:
     eval_sets = ["val", "test"] if args.eval_test else ["val"]
 
     rows = []
-    for name, model in make_baselines(args.seed).items():
+    models = make_baselines(args.seed)
+    for name, model in models.items():
         model.fit(splits["train"], splits["train"]["label"])
         for split in eval_sets:
             rows.append({"model": name, "split": split, **evaluate(model, splits[split])})
 
     table = pd.DataFrame(rows).set_index(["model", "split"])
     pd.set_option("display.width", 200)
+    pd.set_option("display.max_columns", None)
     print(table.round(3))
+
+    print("\nMost predictive words for tfidf_answer:")
+    print(top_features(models["tfidf_answer"]).to_string(index=False))
 
 
 if __name__ == "__main__":
