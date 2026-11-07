@@ -101,12 +101,11 @@ def plot_confusion(y, prob, threshold) -> Figure:
             share = cm[i, j] / cm[i].sum()
             ax.text(j, i, f"{cm[i, j]}\n{share:.1%}", ha="center", va="center", fontsize=11,
                     color="#ffffff" if cm[i, j] > cm.max() * 0.5 else INK)
-    ax.set_xticks([0, 1], [f"Pred. {c.lower()}" for c in CLASS_NAMES])
-    ax.set_yticks([0, 1], CLASS_NAMES)
+    ax.set_xticks([0, 1], [f"Pred: {c.lower()}" for c in CLASS_NAMES])
+    ax.set_yticks([0, 1], [f"True: {c.lower()}" for c in CLASS_NAMES], rotation=90, va="center")
     ax.tick_params(length=0, colors=INK_2)
     for spine in ax.spines.values():
         spine.set_visible(False)
-    ax.set_ylabel("True label", color=INK_2)
     return fig
 
 
@@ -117,13 +116,11 @@ def plot_score_distribution(y, prob, threshold) -> Figure:
     ax.set_axisbelow(True)
     ax.hist(prob[y == 0], bins=bins, histtype="step", linewidth=2, color=GT_COLOR, label=CLASS_NAMES[0])
     ax.hist(prob[y == 1], bins=bins, histtype="step", linewidth=2, color=HALLU_COLOR, label=CLASS_NAMES[1])
-    ax.axvline(threshold, color=INK, linewidth=1, linestyle="--")
-    ax.text(threshold, ax.get_ylim()[1], f" threshold {threshold:.2f}", color=INK_2, fontsize=8,
-            ha="right" if threshold > 0.7 else "left", va="top")
+    ax.axvline(threshold, color=INK, linewidth=1, linestyle="--", label=f"Threshold {threshold:.2f}")
     ax.set_yscale("log")
     ax.set_xlabel("P(hallucinated)", color=INK_2)
     ax.set_ylabel("Samples (log scale)", color=INK_2)
-    ax.legend(frameon=False, fontsize=9, labelcolor=INK_2, loc="upper center")
+    fig.legend(loc="outside lower center", ncols=3, frameon=False, fontsize=9, labelcolor=INK_2)
     return fig
 
 
@@ -226,9 +223,11 @@ def build_app(detector, seed_preds: dict) -> gr.Blocks:
                                           label="Decision threshold")
                 metrics_md = gr.Markdown()
                 with gr.Row():
-                    pr_plot = gr.Plot(label="PR curve")
-                    cm_plot = gr.Plot(label="Confusion matrix")
-                    dist_plot = gr.Plot(label="Score distribution")
+                    # show_label=False: the figure titles already name each plot, and
+                    # Gradio's label badge would cover them.
+                    pr_plot = gr.Plot(show_label=False)
+                    cm_plot = gr.Plot(show_label=False)
+                    dist_plot = gr.Plot(show_label=False)
 
                 def update(s, t):
                     df = seed_preds[s][0]

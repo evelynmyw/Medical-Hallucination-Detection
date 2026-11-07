@@ -109,7 +109,16 @@ Hallucinations that hedge are missed more often; ground-truth answers that are s
 
 Flagged ground-truth answers are short, definitive or negative conclusions ("Skewed X-inactivation is **not associated** with recurrent spontaneous abortion …"; "Alcohol drinking during meals was **inversely** related with risk of acute MI …"), and the model scores both answers of the pair as hallucinated (P ≈ 0.93–1.00).
 
-In both cases the model gives the two answers of a question nearly the same score: it judges each answer's style in isolation and cannot tell which version of a fact is correct. Without the source evidence, these pairs cannot be resolved from the question and answer alone, which motivates adding the `Knowledge` passages to the input.
+In both cases the model gives the two answers of a question nearly the same score: it judges each answer's style in isolation and cannot tell which version of a fact is correct.
+
+**A one-word probe.** Two content-free answers to the placeholder question "Does X reduce Y?", scored by the deployed model (seed 44) through the API:
+
+| Answer | P(hallucinated) | Prediction |
+|---|---|---|
+| "X **significantly** reduces Y." | 0.998 | hallucinated |
+| "X **may** reduce Y." | 0.012 | ground truth |
+
+Neither sentence contains any medical content; swapping one hedging word flips the prediction. Without the source evidence, these pairs cannot be resolved from the question and answer alone, which motivates adding the `Knowledge` passages to the input.
 
 Full list: `results/bio_clinicalbert/consistent_errors.csv`.
 
@@ -149,7 +158,7 @@ curl -X POST localhost:8000/detect -H "Content-Type: application/json" \
 
 `GET /health` returns `{"status": "ok"}`. Empty or over-long inputs are rejected with HTTP 422. `tests/test_api.py` tests the HTTP contract with a fake detector.
 
-**Docker** (CPU inference; the model is mounted at runtime, not baked into the image):
+**Docker** (CPU inference; the model is mounted at runtime, not baked into the image). *The Dockerfile has not been built or run yet; the API itself has been tested with uvicorn.*
 
 ```bash
 docker build -t medhallu-api .
