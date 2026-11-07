@@ -9,6 +9,7 @@ Usage (from repo root):
 import argparse
 import json
 import random
+import sys
 import time
 from pathlib import Path
 
@@ -128,6 +129,7 @@ def plot_history(history: list[dict], path: Path) -> None:
     plt.figure(figsize=(6, 4))
     plt.plot(epochs, [h["train_loss"] for h in history], marker="o", label="train")
     plt.plot(epochs, [h["val_loss"] for h in history], marker="o", label="val")
+    plt.xticks(epochs)
     plt.xlabel("Epoch")
     plt.ylabel("Cross-entropy loss")
     plt.legend()
@@ -139,6 +141,7 @@ def plot_history(history: list[dict], path: Path) -> None:
 # ---------- Main ----------
 
 def main() -> None:
+    sys.stdout.reconfigure(line_buffering=True)  # show each log line immediately (e.g. in Colab)
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--seed", type=int, help="override training seed")
@@ -157,6 +160,8 @@ def main() -> None:
     device = get_device()
     out_dir = Path(cfg["output_dir"]) / f"seed{cfg['seed']}"
     out_dir.mkdir(parents=True, exist_ok=True)
+    with open(out_dir / "config.json", "w") as f:
+        json.dump(cfg, f, indent=2)
     print(f"Device: {device} | Output: {out_dir}")
 
     # Data: the test split is deliberately not used here.
@@ -201,6 +206,11 @@ def main() -> None:
               f"val_acc {val['accuracy']:.4f} | val_auc {val['auc']:.4f} | "
               f"pred_pos {val['pred_positive_rate']:.2f} | {time.time() - start:.0f}s")
 
+        # Save logs every epoch, so an interrupted run still leaves a record.
+        with open(out_dir / "history.json", "w") as f:
+            json.dump(history, f, indent=2)
+        plot_history(history, out_dir / "loss_curve.png")
+
         # Early stopping on validation loss; keep only the best checkpoint.
         if val["loss"] < best_val_loss:
             best_val_loss, epochs_without_improvement = val["loss"], 0
@@ -213,11 +223,6 @@ def main() -> None:
                 print(f"Early stopping: no val-loss improvement for {cfg['patience']} epochs")
                 break
 
-    with open(out_dir / "history.json", "w") as f:
-        json.dump(history, f, indent=2)
-    with open(out_dir / "config.json", "w") as f:
-        json.dump(cfg, f, indent=2)
-    plot_history(history, out_dir / "loss_curve.png")
     print(f"Done. Best val_loss {best_val_loss:.4f}. Files in {out_dir}")
 
 
