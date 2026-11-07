@@ -1,0 +1,23 @@
+# Training config. Override any run-specific value from the command line (see src/train.py).
+
+model_name: emilyalsentzer/Bio_ClinicalBERT
+use_knowledge: false      # true: input = question + Knowledge passages + answer
+
+# Data
+split_seed: 42            # fixed, so every training seed sees the same train/val split
+val_size: 0.15
+max_length: 256
+
+# Optimization
+seed: 42                  # training seed (model init head, shuffling, dropout)
+batch_size: 16
+lr: 2.0e-5
+weight_decay: 0.01
+epochs: 4
+warmup_ratio: 0.1
+grad_clip: 1.0
+patience: 2               # early stopping: epochs without val-loss improvement
+
+# Logging / output
+log_every: 100
+output_dir: outputs/bio_clinicalbert
