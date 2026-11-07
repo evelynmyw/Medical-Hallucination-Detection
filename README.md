@@ -72,6 +72,47 @@ The most predictive TF-IDF features show the style difference. Ground-truth answ
 
 **5. Overfitting starts early.** Validation loss is lowest after epoch 1 or 2 for every seed. Training loss keeps falling to 0.03–0.06 while validation loss rises, as the model becomes more confident on the examples it gets wrong.
 
+## Error analysis
+
+`src/error_analysis.py` looks at test errors made by **all three seeds**, which reflect systematic weaknesses rather than seed noise. 53 hallucinated answers are missed by every seed, and 16 ground-truth answers are flagged by every seed.
+
+**Missed hallucinations by category** (recall averaged over seeds):
+
+| Category | n | Recall | Missed by all seeds |
+|---|---|---|---|
+| Incomplete Information | 212 | 0.862 | 20 |
+| Misinterpretation of Question | 752 | 0.922 | 33 |
+| Mechanism and Pathway Misattribution | 33 | 0.980 | 0 |
+| Methodological and Evidence Fabrication | 3 | 1.000 | 0 |
+
+Mechanism-type hallucinations, which use the confident causal wording the TF-IDF baseline picked up, are almost always caught.
+
+**Errors follow the hedging style.** Share of answers containing a hedging word (*may, might, could, suggest(s), possibly, likely*):
+
+| Group | n | Median words | Hedged |
+|---|---|---|---|
+| Hallucinated, missed by all seeds | 53 | 25 | 26.4% |
+| Hallucinated, caught by all seeds | 873 | 23 | 7.2% |
+| Ground truth, flagged by all seeds | 16 | 21.5 | 6.2% |
+| Ground truth, accepted by all seeds | 939 | 38 | 42.8% |
+
+Hallucinations that hedge are missed more often; ground-truth answers that are short and assertive are flagged. The groups of consistent errors are small (53 and 16), and the hedging word list is a coarse proxy.
+
+**Typical failures.** Missed hallucinations are usually near-copies of the ground truth with one fact changed, which the model scores the same as the original (P(hallucinated) ≈ 0.01 for both):
+
+- *Ground truth:* "Systolic BP measured by the **nurse** … is significantly lower than the readings obtained by the **physician** …"
+  *Hallucinated:* "Systolic BP measured by the **physician** … is significantly lower than the readings obtained by the **nurse** …"
+- *Ground truth:* "VAT area measurement at a single level 3 cm **above** the lower margin of the L3 vertebra …"
+  *Hallucinated:* "… 3 cm **below** the lower margin of the L3 vertebra …"
+- *Ground truth:* "… use of prophylactic antibiotics for TIVAD placement is **not recommended**."
+  *Hallucinated:* "… routine use of prophylactic antibiotics is **advised** …"
+
+Flagged ground-truth answers are short, definitive or negative conclusions ("Skewed X-inactivation is **not associated** with recurrent spontaneous abortion …"; "Alcohol drinking during meals was **inversely** related with risk of acute MI …"), and the model scores both answers of the pair as hallucinated (P ≈ 0.93–1.00).
+
+In both cases the model gives the two answers of a question nearly the same score: it judges each answer's style in isolation and cannot tell which version of a fact is correct. Without the source evidence, these pairs cannot be resolved from the question and answer alone, which motivates adding the `Knowledge` passages to the input.
+
+Full list: `results/bio_clinicalbert/consistent_errors.csv`.
+
 ## Limitations
 
 - **Style shortcut.** The dataset's hallucinated answers differ from the ground truth in length and wording. High accuracy here does not show that the model checks facts; a hallucination written in cautious, author-like language would likely be missed.
