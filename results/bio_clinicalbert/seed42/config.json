@@ -1,0 +1,17 @@
+{
+  "model_name": "emilyalsentzer/Bio_ClinicalBERT",
+  "use_knowledge": false,
+  "split_seed": 42,
+  "val_size": 0.15,
+  "max_length": 256,
+  "seed": 42,
+  "batch_size": 16,
+  "lr": 2e-05,
+  "weight_decay": 0.01,
+  "epochs": 4,
+  "warmup_ratio": 0.1,
+  "grad_clip": 1.0,
+  "patience": 2,
+  "log_every": 100,
+  "output_dir": "outputs/bio_clinicalbert"
+}
