@@ -135,15 +135,15 @@ def probability_bar(p: float, threshold: float) -> str:
     """
     color = HALLU_COLOR if p >= threshold else GT_COLOR
     return f"""
-<div style="font-family: system-ui, sans-serif; color: {INK_2}; font-size: 13px; padding: 4px 0 20px;">
+<div style="font-family: system-ui, sans-serif; color: {INK_2}; font-size: 13px; padding: 28px 0 8px;">
   <div style="position: relative; height: 14px; background: {GRID}; border-radius: 4px;">
     <div style="width: {p * 100:.1f}%; height: 100%; background: {color}; border-radius: 4px;"></div>
     <div style="position: absolute; left: {threshold * 100:.1f}%; top: -5px; bottom: -5px;
                 width: 2px; background: {INK};"></div>
-    <div style="position: absolute; left: {threshold * 100:.1f}%; top: 20px;
+    <div style="position: absolute; left: {threshold * 100:.1f}%; bottom: 22px;
                 transform: translateX(-50%); white-space: nowrap;">threshold {threshold:.2f}</div>
   </div>
-  <div style="display: flex; justify-content: space-between; margin-top: 24px; color: {MUTED};">
+  <div style="display: flex; justify-content: space-between; margin-top: 8px; color: {MUTED};">
     <span>0 · ground truth</span><span>1 · hallucinated</span>
   </div>
 </div>"""
@@ -213,7 +213,8 @@ def build_app(detector, seed_preds: dict) -> gr.Blocks:
                 results_csv = RESULTS_DIR / "test_results.csv"
                 if results_csv.exists():
                     cols = ["accuracy", "precision", "recall", "f1", "auc", "acc_len_matched"]
-                    summary = pd.read_csv(results_csv, index_col=0)[cols].round(3).reset_index()
+                    summary = (pd.read_csv(results_csv, index_col=0)[cols]
+                               .map(lambda v: f"{v:.3f}").reset_index())  # fixed 3 decimals
                     gr.Markdown("### Test set (`pqa_labeled`, 2,000 samples): all models")
                     gr.Dataframe(summary, interactive=False)
 
@@ -254,12 +255,15 @@ def build_app(detector, seed_preds: dict) -> gr.Blocks:
                                                 "Flagged ground truth")
                 view_cols = ["qid", "error_type", "hallu_category", "difficulty", "mean_prob",
                              "question", "answer"]
+                errors["hallu_category"] = errors["hallu_category"].str.replace("#Question#", "question")
                 errors = errors[view_cols].round({"mean_prob": 3})
                 gr.Markdown(f"{len(errors)} test answers misclassified by **every** training seed. "
                             "`mean_prob` is P(hallucinated) averaged over seeds.")
                 kind = gr.Radio(["All", "Missed hallucination", "Flagged ground truth"], value="All",
                                 label="Error type")
-                table = gr.Dataframe(errors, interactive=False, wrap=True)
+                table = gr.Dataframe(errors, interactive=False, wrap=True,
+                                     column_widths=["130px", "150px", "190px", "100px", "100px",
+                                                    "300px", "420px"])
                 kind.change(lambda k: errors if k == "All" else errors[errors["error_type"] == k],
                             kind, table)
     return demo
