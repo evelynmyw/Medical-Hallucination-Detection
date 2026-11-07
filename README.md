@@ -123,6 +123,41 @@ Full list: `results/bio_clinicalbert/consistent_errors.csv`.
 - **Only exact-duplicate leakage is tested.** Paraphrased questions, or questions from the same source paper, are not detected.
 - **Knowledge passages are not used.** The model sees only the question and the answer.
 
+## Demo and deployment
+
+All three entry points share one inference module, `src/predict.py`, which loads a trained seed and applies its validation-chosen threshold from `threshold.json` (not argmax). Device selection: CUDA → MPS → CPU.
+
+**Gradio interface** (`app.py`), for prototyping and model inspection:
+
+- *Try it*: score a question/answer pair (needs a trained model).
+- *Evaluation*: test metrics for all models, plus PR curve, confusion matrix and score distribution for one seed, with an adjustable threshold.
+- *Errors*: browse test answers misclassified by every seed.
+
+```bash
+python app.py --seed-dir <path>/seed44 --share   # all tabs
+python app.py                                    # evaluation and error tabs only (reads results/)
+```
+
+**REST API** (`src/api.py`, FastAPI):
+
+```bash
+MODEL_DIR=<path>/seed44 uvicorn src.api:app --port 8000
+curl -X POST localhost:8000/detect -H "Content-Type: application/json" \
+     -d '{"question": "Does X reduce Y?", "answer": "X significantly reduces Y."}'
+# {"label": "hallucinated", "p_hallucinated": ..., "threshold": 0.87}
+```
+
+`GET /health` returns `{"status": "ok"}`. Empty or over-long inputs are rejected with HTTP 422. `tests/test_api.py` tests the HTTP contract with a fake detector.
+
+**Docker** (CPU inference; the model is mounted at runtime, not baked into the image):
+
+```bash
+docker build -t medhallu-api .
+docker run --rm -p 8000:8000 -v <path>/seed44:/model:ro medhallu-api
+```
+
+The trained weights are not distributed with this repository; train a seed with `src/train.py` and run `src/evaluate.py` to produce `threshold.json`.
+
 ## Reproduce
 
 ```bash

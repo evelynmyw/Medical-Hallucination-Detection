@@ -32,6 +32,7 @@ from transformers import (
 
 from src.data import build_splits
 from src.dataset import MedHalluDataset
+from src.predict import get_device  # noqa: F401  (also re-exported for src.evaluate)
 
 
 # ---------- Setup helpers ----------
@@ -40,14 +41,6 @@ def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)  # also seeds CUDA and MPS
-
-
-def get_device() -> torch.device:
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
 
 
 def subsample(df: pd.DataFrame, n_questions: int, seed: int) -> pd.DataFrame:

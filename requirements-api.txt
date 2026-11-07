@@ -1,0 +1,5 @@
+# Serving-only dependencies for the Docker image (torch is installed separately, CPU build).
+transformers
+fastapi
+uvicorn
+numpy
